@@ -8,5 +8,6 @@
         "password": "",
         "dbname": "",
         "tbl_prefix": ""
-    }
+    },
+    "newuserpassmd5": ""
 }
