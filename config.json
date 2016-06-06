@@ -1,4 +1,12 @@
 {
-    "username": "YOUR_EMAIL",
-    "password": "YOUR_PASSWORD"
+    "username": "",
+    "password": "",
+    "database": {
+        "type": "pgsql",
+        "hostname": "localhost",
+        "username": "",
+        "password": "",
+        "dbname": "",
+        "tbl_prefix": ""
+    }
 }
