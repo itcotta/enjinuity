@@ -11,7 +11,9 @@
 # along with this software. If not, see
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
 import json
+import pickle
 import psycopg2
+import sys
 
 with open('config.json', 'r') as f:
     config = json.load(f)
@@ -26,20 +28,32 @@ conn = psycopg2.connect(host=hostname, user=username, password=password,
                         database=dbname)
 cur = conn.cursor()
 
-users = pickle.load(open('users.pkl', 'rb'))
-for user in users:
-    query = """INSERT INTO users VALUES (
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s);"""
-    cur.execute(query, user)
-conn.commit()
+if sys.argv[1] == 'users':
+    users = pickle.load(open('users.pkl', 'rb'))
+    for user in users:
+        query = """INSERT INTO users VALUES (
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s);"""
+        cur.execute(query, user)
+    conn.commit()
+elif sys.argv[1] == 'forums':
+    forums = pickle.load(open('forums.pkl', 'rb'))
+    for forum in forums:
+        query_head = 'INSERT INTO forums VALUES ('
+        query_body = ''.join(['%s, ' for _ in range(len(forum) - 1)])
+        query_tail = '%s);'
+        cur.execute(query_head + query_body + query_tail, forum)
+    conn.commit()
+else:
+    # print some help here
+    sys.exit()
 
 cur.close()
 conn.close()

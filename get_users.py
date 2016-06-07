@@ -27,18 +27,14 @@ def random_string(length):
 def md5(string):
     return hashlib.md5(string.encode()).hexdigest()
 
-def salt_password(pw, salt):
-    return md5_hex(md5_hex(salt) + pw)
-
-def generate_timestamp():
-    return int(time.time())
-
 users = []
+users_map = {}
 uid = 2
 with open('users.txt', 'r') as f:
     pw = config['new_user']['passwordmd5']
     email = config['new_user']['email']
     for user in f:
+        user = user.rstrip()
         salt = random_string(8)
         saltedpw = md5(md5(salt) + pw)
         loginkey = random_string(50)
@@ -129,6 +125,8 @@ with open('users.txt', 'r') as f:
             '',         # usernotes
             0           # sourceeditor
         ])
+        users_map[user] = uid
         uid += 1
 
 pickle.dump(users, open('users.pkl', 'wb'))
+pickle.dump(users_map, open('users_map.pkl', 'wb'))
