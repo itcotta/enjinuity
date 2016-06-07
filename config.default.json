@@ -9,5 +9,8 @@
         "dbname": "",
         "tbl_prefix": ""
     },
-    "newuserpassmd5": ""
+    "new_user": {
+        "passwordmd5": "",
+        "email": "change@me.com"
+    }
 }
