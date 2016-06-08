@@ -1,5 +1,5 @@
 # enjinuity
-# Written in 2016 by David H. Wei <https://github.com/spikeh/>
+# Written in 2016 by David H. Wei <https://github.com/spikeh/> and Italo Cotta <https://github.com/itcotta/>
 #
 # To the extent possible under law, the author(s) have dedicated all
 # copyright and related and neighboring rights to this software to the
@@ -40,7 +40,7 @@ def parse(tree, func, *args, **kwargs):
 def bbcode_formatter(element, children):
     
     if element.tag == 'br':
-        return '\r'
+        return '\r'.rstrip()
     if element.tag == 'a':
         return u"[url={link}]{text}[/url]".format(link=element.get('href'), text=children)
     if element.tag == 'img':
@@ -82,7 +82,7 @@ def bbcode_formatter(element, children):
         elif(element.get('style') == 'text-align:right'):
             return u"[align=right]{text}[align]".format(text=children)
     if children:
-        return children
+        return children.rstrip()
 
 class Post(FObject):
 
@@ -111,7 +111,9 @@ class Post(FObject):
               tzinfo=timezone.utc).timestamp()
 
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
-        self.message = 'Default message.'
+        tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
+        bbcode = parse(tree, bbcode_formatter)
+        self.message = bbcode
 
     def get_uid(self):
         return self.uid
