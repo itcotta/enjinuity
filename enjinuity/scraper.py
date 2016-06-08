@@ -9,20 +9,12 @@
 # You should have received a copy of the CC0 Public Domain Dedication
 # along with this software. If not, see
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
+import enjinuity.objects
 from selenium import webdriver
 from urllib.parse import urlparse
 
 
 class Scraper:
-    # Absolute xpaths
-    xpath_categories = ('//div[contains(@class, "contentbox") and '
-                              'contains(@class, "category")]')
-    xpath_subforums =  ('//div[contains(@class, "contentbox") and '
-                              'contains(@class, "subforums-block")]')
-    xpath_threads =    ('//div[contains(@class, "contentbox") and '
-                              'contains(@class, "threads")]')
-    xpath_posts =      ('//div[contains(@class, "contentbox") and '
-                              'contains(@class, "posts")]')
 
     def __init__(self, url, cookies, users):
         self.browser = webdriver.Firefox()
@@ -43,5 +35,18 @@ class Scraper:
         self.tid = 1
         self.pid = 1
 
+        self.root = []
+
     def __del__(self):
         self.browser.quit()
+
+    def run(self):
+        categories = self.browser.find_elements_by_xpath(
+            ('//div[contains(@class, "contentbox") and '
+                   'contains(@class, "category")]'))
+        for c in categories:
+            category = enjinuity.objects.Category(c)
+            self.root.append(category)
+
+        # XXX Just one category for testing
+        self.root[0].get_children(self.browser, self.users)
