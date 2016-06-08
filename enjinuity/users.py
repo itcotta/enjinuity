@@ -15,26 +15,27 @@ import random
 import string
 import time
 
+def random_string(length):
+    return ''.join(random.SystemRandom().choice(string.ascii_lowercase +
+        string.ascii_uppercase + string.digits) for _ in range(length))
+
+def md5(string):
+    return hashlib.md5(string.encode()).hexdigest()
+
 
 class Users:
+
     def __init__(self, users, email, passwd, uid):
-        self.users = []
         with open(users, 'r') as f:
-            for user in f:
-                user = user.rstrip()
-                self.users.append(user)
+            self.users = [u.rstrip() for u in f]
         self.email = email
         self.passwd = passwd
         self.uid = uid
+
+        # Database-specific output
         self.out = []
+        # Map of username->uid
         self.user_map = {}
-
-    def random_string(self, length):
-        return ''.join(random.SystemRandom().choice(string.ascii_lowercase +
-            string.ascii_uppercase + string.digits) for _ in range(length))
-
-    def md5(self, string):
-        return hashlib.md5(string.encode()).hexdigest()
 
     def get_uid(self, user):
         try:
@@ -47,13 +48,14 @@ class Users:
 
 
 class MyBBUsers(Users):
+
     def __init__(self, users, email, passwd, uid):
         super().__init__(users, email, passwd, uid)
         # http://docs.mybb.com/1.6/Database-Tables-mybb-users/
         for user in self.users:
-            salt = self.random_string(8)
-            saltedpw = self.md5(self.md5(salt) + self.passwd)
-            loginkey = self.random_string(50)
+            salt = random_string(8)
+            saltedpw = md5(md5(salt) + self.passwd)
+            loginkey = random_string(50)
             now = int(time.time())
             self.out.append([
                 self.uid,
