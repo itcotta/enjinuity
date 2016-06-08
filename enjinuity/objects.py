@@ -11,7 +11,7 @@
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
 from datetime import datetime, timezone
 from selenium.common.exceptions import NoSuchElementException
-
+import lxml.html
 
 class FObject:
 
@@ -20,6 +20,69 @@ class FObject:
         self.children = []
         self.children_to_get = []
 
+
+
+
+
+def parse(tree, func, *args, **kwargs):
+  result = []
+  for e in tree.xpath('child::node()'):
+    if isinstance(e, lxml.html.HtmlElement):
+      children = parse(e, func, *args, **kwargs)
+      child_result = func(e, children, *args, **kwargs)
+      if child_result:
+        result.append(child_result)
+    elif isinstance(e, lxml.etree._ElementUnicodeResult):
+      result.append(e)
+  return ''.join(result)
+
+
+def bbcode_formatter(element, children):
+    
+    if element.tag == 'br':
+        return '\r'
+    if element.tag == 'a':
+        return u"[url={link}]{text}[/url]".format(link=element.get('href'), text=children)
+    if element.tag == 'img':
+        return u"[img={link}]{text}[/img]".format(link=element.get('src'), text=children)
+    if element.tag in ['b', 'strong']:
+        return u"[b]{text}[/b]".format(text=children)
+    if element.tag in ['em', 'i']:
+        return u"[i]{text}[/i]".format(text=children)
+    if element.tag in ['del', 's']:
+        return u"[s]{text}[/s]".format(text=children)
+    if element.tag == 'u':
+        return u"[u]{text}[/u]".format(text=children)
+    if element.tag == 'title':
+        return u""
+    if element.tag == 'span':
+        if "font-size" in element.get('style'):
+            size = element.get('style').split(':')
+            return u"[size={size}]{text}[/size]".format(text=children, size=size[1])    
+        elif "color" in element.get('style'):
+            hexcolor = element.get('style').split('#')
+            return u"[color=#{color}]{text}[/color]".format(text=children, color=hexcolor[1])
+    if element.tag =='param' and element.get('name') == 'movie' and "youtube" in element.get('value'):
+        firstSplit = element.get('value').split('&')
+        secondSplit = firstSplit[0].split('/')
+        return u"[video=youtube]http://youtube.com/watch?v={value}[/video]".format(value=secondSplit[4])
+    if element.tag =='ol': #numered list
+        return u"[list=1]{text}[/list]".format(text=children)
+    if element.tag =='ul': #bullepoint list
+        return u"[list]{text}[/list]".format(text=children)
+    if element.tag =='li': #list item
+        return u"[*]{text}".format(text=children)
+    if element.tag =='strike':
+        return u"[s]{text}[/s]".format(text=children)
+    if element.tag =='div':
+        if(element.get('style') == 'text-align:center'):
+            return u"[align=center]{text}[align]".format(text=children)
+        elif(element.get('style') == 'text-align:left'):
+            return u"[align=left]{text}[align]".format(text=children)
+        elif(element.get('style') == 'text-align:right'):
+            return u"[align=right]{text}[align]".format(text=children)
+    if children:
+        return children
 
 class Post(FObject):
 
