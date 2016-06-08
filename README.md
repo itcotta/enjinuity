@@ -1,1 +1,1 @@
-# enjin-scraper
+# enjinuity
