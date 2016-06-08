@@ -10,8 +10,28 @@
 # along with this software. If not, see
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
 import enjinuity.objects
+import pickle
 from selenium import webdriver
 from urllib.parse import urlparse
+
+def dump_cookies(url, user, passwd, where):
+    browser = webdriver.Firefox()
+    browser.get(url)
+    username = browser.find_element_by_xpath(
+      ('//*[@id="section-main"]/div/div[3]/div[2]/div[8]/table/tbody/tr/td/div'
+       '/div/div/div/table/tbody/tr/td[2]/form/div[2]/input'))
+    password = browser.find_element_by_xpath(
+      ('//*[@id="section-main"]/div/div[3]/div[2]/div[8]/table/tbody/tr/td/div'
+       '/div/div/div/table/tbody/tr/td[2]/form/div[4]/input'))
+    username.send_keys(user)
+    password.send_keys(passwd)
+    submit = browser.find_element_by_xpath(
+      ('//*[@id="section-main"]/div/div[3]/div[2]/div[8]/table/tbody/tr/td/div'
+       '/div/div/div/table/tbody/tr/td[2]/form/div[5]/div/input'))
+    submit.click()
+    cookies = browser.get_cookies()
+    pickle.dump(cookies, open(where, 'wb'))
+    browser.quit()
 
 
 class Scraper:
