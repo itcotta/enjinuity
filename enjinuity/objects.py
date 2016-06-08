@@ -1,5 +1,6 @@
 # enjinuity
-# Written in 2016 by David H. Wei <https://github.com/spikeh/> and Italo Cotta <https://github.com/itcotta/>
+# Written in 2016 by David H. Wei <https://github.com/spikeh/>
+# and Italo Cotta <https://github.com/itcotta/>
 #
 # To the extent possible under law, the author(s) have dedicated all
 # copyright and related and neighboring rights to this software to the
@@ -9,36 +10,23 @@
 # You should have received a copy of the CC0 Public Domain Dedication
 # along with this software. If not, see
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
+import lxml.html
 from datetime import datetime, timezone
 from selenium.common.exceptions import NoSuchElementException
-import lxml.html
-
-class FObject:
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.children = []
-        self.children_to_get = []
-
-
-
-
 
 def parse(tree, func, *args, **kwargs):
-  result = []
-  for e in tree.xpath('child::node()'):
-    if isinstance(e, lxml.html.HtmlElement):
-      children = parse(e, func, *args, **kwargs)
-      child_result = func(e, children, *args, **kwargs)
-      if child_result:
-        result.append(child_result)
-    elif isinstance(e, lxml.etree._ElementUnicodeResult):
-      result.append(e)
-  return ''.join(result)
-
+    result = []
+    for e in tree.xpath('child::node()'):
+        if isinstance(e, lxml.html.HtmlElement):
+            children = parse(e, func, *args, **kwargs)
+            child_result = func(e, children, *args, **kwargs)
+            if child_result:
+                result.append(child_result)
+        elif isinstance(e, lxml.etree._ElementUnicodeResult):
+            result.append(e)
+    return ''.join(result)
 
 def bbcode_formatter(element, children):
-    
     if element.tag == 'br':
         return '\r'.rstrip()
     if element.tag == 'a':
@@ -84,6 +72,15 @@ def bbcode_formatter(element, children):
     if children:
         return children.rstrip()
 
+
+class FObject:
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.children = []
+        self.children_to_get = []
+
+
 class Post(FObject):
 
     def __init__(self, elem, thread, subject, users):
@@ -112,8 +109,7 @@ class Post(FObject):
 
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
         tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
-        bbcode = parse(tree, bbcode_formatter)
-        self.message = bbcode
+        self.message = parse(tree, bbcode_formatter)
 
     def get_uid(self):
         return self.uid
