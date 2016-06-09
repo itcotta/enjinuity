@@ -29,7 +29,7 @@ def parse(tree, func, *args, **kwargs):
 
 def bbcode_formatter(element, children):
     if element.tag == 'br':
-        return '\r'.rstrip()
+        return "\r".rstrip()
     if element.tag == 'a':
         return "[url={link}]{text}[/url]".format(link=element.get('href'),
                                                  text=children)
@@ -96,7 +96,7 @@ def get_datetime(string):
     # Jan 23, 15
     if match:
         postdt = datetime.strptime(timestr, '%b %d, %y').replace(
-                tzinfo=timezone.utc)
+          tzinfo=timezone.utc)
         return postdt
     match = re.search(r'^(\d+) (\w+) ago$', timestr)
     # 12 hours ago
@@ -110,8 +110,8 @@ def get_datetime(string):
         postdt = now - td
         return postdt
     match = re.search(
-            r'^([a-zA-Z]{3}) at (?:(?P<half>[\w\s:]+m)$|(?P<full>[\w\s:]+)$)',
-            timestr)
+      r'^([a-zA-Z]{3}) at (?:(?P<half>[\w\s:]+m)$|(?P<full>[\w\s:]+)$)',
+      timestr)
     # Sun at 03:52 pm or Tue at 21:20
     if match:
         post_wd = weekday_map[match.group(1)]
@@ -119,7 +119,6 @@ def get_datetime(string):
         lastweek = now.replace(day=now.day-7)
         lastweek_wd = lastweek.weekday()
         posttime = None
-        postdt = None
         if match.group('half'):
             posttime = datetime.strptime(
               match.group('half'), '%I:%M %p').replace(
@@ -128,6 +127,7 @@ def get_datetime(string):
             posttime = datetime.strptime(
               match.group('full'), '%H:%M').replace(
               tzinfo=timezone.utc).time()
+        postdt = None
         if post_wd == lastweek_wd:
             postdt = lastweek.replace(hour=posttime.hour,
                                       minute=posttime.minute,
@@ -143,6 +143,7 @@ def get_datetime(string):
                                  minute=posttime.minute, second=posttime.second)
         postdt = postdt.replace(tzinfo=timezone(timedelta(hours=1)))
         return postdt
+    return None
 
 
 class FObject:
@@ -170,9 +171,10 @@ class Post(FObject):
 
         # NOTE Enjin does not store the editor of a post, assume it's
         #      the poster
-        self.edituid = self.uid
+        self.edituid = 0
         self.edittime = 0
         if len(time_list) > 1 and len(time_list[-1]) > 2:
+            self.edituid = self.uid
             self.edittime = get_datetime(time_list[-1]).timestamp()
 
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
@@ -217,10 +219,9 @@ class Post(FObject):
 # http://.../viewthread/... page
 class Thread(FObject):
 
-    def __init__(self, elem, forum, users, views):
-        # TODO Thread views from parent
+    def __init__(self, elem, views, forum, users):
         super().__init__(forum)
-        self.c_views = views
+        self.views = views
         posts_elem = elem.find_element_by_xpath(
           '//div[@class="contentbox posts"]')
         
@@ -303,7 +304,7 @@ class Forum(FObject):
             t_url = t_name.get_attribute('href')
             t_views = t.find_element_by_xpath(
               ('td[contains(@class, "views")]')).text
-            self.children_to_get.append((t_url,t_views))
+            self.children_to_get.append((t_url, t_views))
 
     def get_children(self, browser, users):
         for child in self.children_to_get:
@@ -315,11 +316,10 @@ class Forum(FObject):
                 forum = Forum(c_name, c_desc, c_body, self)
                 self.children.append(forum)
             else:
-                c_url = child[0]
-                c_views = child[1]
+                c_url, c_views = child
                 browser.get(c_url)
                 c_body = browser.find_element_by_tag_name('body')
-                thread = Thread(c_body, self, users, c_views)
+                thread = Thread(c_body, c_views, self, users)
                 self.children.append(thread)
 
         for child in self.children:
