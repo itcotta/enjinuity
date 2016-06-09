@@ -178,7 +178,7 @@ class Post(FObject):
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
         tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
         self.message = parse(tree, bbcode_formatter)
-
+        
     def get_uid(self):
         return self.uid
 
@@ -223,16 +223,23 @@ class Thread(FObject):
         self.c_views = views
         posts_elem = elem.find_element_by_xpath(
           '//div[@class="contentbox posts"]')
-
+        
         # TODO Flags enum
         self.flags = posts_elem.find_element_by_xpath(
           'div[1]/div[3]/span/div[1]/div[1]').get_attribute('class').split(' ')
+        self.is_sticky = False
+        self.is_locked = False 
+        if("sticky" in self.flags):
+            self.is_sticky = True
+        elif("closed" in self.flags):
+            self.is_locked = True    
+                
         self.subject = posts_elem.find_element_by_xpath(
           'div[1]/div[3]/span/h1').text
 
         posts = posts_elem.find_elements_by_xpath(
           'div[2]//tr[contains(@class, "row")]')
-
+        
         # First post
         op = Post(posts[0], self, self.subject, users)
         self.opuid = op.get_uid()
