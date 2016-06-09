@@ -11,7 +11,8 @@
 # along with this software. If not, see
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
 import lxml.html
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timezone, timedelta
 from selenium.common.exceptions import NoSuchElementException
 
 def parse(tree, func, *args, **kwargs):
@@ -78,6 +79,71 @@ def bbcode_formatter(element, children):
     if children:
         return children.rstrip()
 
+weekday_map = {
+    'Mon': 0,
+    'Tue': 1,
+    'Wed': 2,
+    'Thu': 3,
+    'Fri': 4,
+    'Sat': 5,
+    'Sun': 6
+}
+
+def get_datetime(string):
+    match = re.search(r'(?:^Posted|^Last edited) ([\w\s,:]*)', string)
+    timestr = match.group(1)
+    match = re.search(r'\s\d\d$', timestr)
+    # Jan 23, 15
+    if match:
+        postdt = datetime.strptime(timestr, '%b %d, %y').replace(
+                tzinfo=timezone.utc)
+        return postdt
+    match = re.search(r'^(\d+) (\w+) ago$', timestr)
+    # 12 hours ago
+    # 5 minutes ago
+    if match:
+        now = datetime.now(tz=timezone.utc)
+        if match.group(2) == 'hours':
+            td = timedelta(hours=int(match.group(1)))
+        else:
+            td = timedelta(minutes=int(match.group(1)))
+        postdt = now - td
+        return postdt
+    match = re.search(
+            r'^([a-zA-Z]{3}) at (?:(?P<half>[\w\s:]+m)$|(?P<full>[\w\s:]+)$)',
+            timestr)
+    # Sun at 03:52 pm or Tue at 21:20
+    if match:
+        post_wd = weekday_map[match.group(1)]
+        now = datetime.now(tz=timezone.utc)
+        lastweek = now.replace(day=now.day-7)
+        lastweek_wd = lastweek.weekday()
+        posttime = None
+        postdt = None
+        if match.group('half'):
+            posttime = datetime.strptime(
+              match.group('half'), '%I:%M %p').replace(
+              tzinfo=timezone.utc).time()
+        else:
+            posttime = datetime.strptime(
+              match.group('full'), '%H:%M').replace(
+              tzinfo=timezone.utc).time()
+        if post_wd == lastweek_wd:
+            postdt = lastweek.replace(hour=posttime.hour,
+                                      minute=posttime.minute,
+                                      second=posttime.second)
+        elif post_wd > lastweek_wd:
+            diff = post_wd - lastweek_wd
+            postdt = lastweek.replace(day=lastweek.day+diff, hour=posttime.hour,
+                                      minute=posttime.minute,
+                                      second=posttime.second)
+        else:
+            diff = lastweek_wd - post_wd
+            postdt = now.replace(day=now.day-diff, hour=posttime.hour,
+                                 minute=posttime.minute, second=posttime.second)
+        postdt = postdt.replace(tzinfo=timezone(timedelta(hours=1)))
+        return postdt
+
 
 class FObject:
 
@@ -95,23 +161,19 @@ class Post(FObject):
         self.author = elem.find_element_by_xpath('td[1]/div[1]/div[1]/a').text
         self.uid = users.get_uid(self.author)
 
-        # TODO Other strings i.e. "x minutes ago", "y hours ago"...
         # Posted Jan 23, 15 · OP · Last edited Apr 29, 16
+        # Posted Sun at 03:52 pm · Last edited Sun at 15:53
         time_elem = elem.find_element_by_xpath('td[2]/div[2]/div[1]/div[1]')
         time_list = time_elem.text.split(' · ')
 
-        self.posttime = datetime.strptime(
-          time_list[0], "Posted %b %d, %y").replace(
-          tzinfo=timezone.utc).timestamp()
+        self.posttime = get_datetime(time_list[0]).timestamp()
 
-        self.edituid = 0
+        # NOTE Enjin does not store the editor of a post, assume it's
+        #      the poster
+        self.edituid = self.uid
         self.edittime = 0
-        if len(time_list) == 3:
-            self.edituid = self.uid if time_list[1] == 'OP' else users.get_uid(
-              time_list[1])
-            self.edittime = datetime.strptime(
-              time_list[2], "Last edited %b %d, %y").replace(
-              tzinfo=timezone.utc).timestamp()
+        if len(time_list) > 1 and len(time_list[-1]) > 2:
+            self.edittime = get_datetime(time_list[-1]).timestamp()
 
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
         tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
