@@ -225,14 +225,13 @@ class Thread(FObject):
         posts_elem = browser.find_element_by_xpath(
           './/div[@class="contentbox posts"]')
 
-        # TODO Flags enum
         flags = posts_elem.find_element_by_xpath(
           'div[1]/div[3]/span/div[1]/div[1]').get_attribute('class').split(' ')
         self.is_sticky = False
         self.is_locked = False
-        if "sticky" in self.flags:
+        if "sticky" in flags:
             self.is_sticky = True
-        if "closed" in self.flags:
+        if "closed" in flags:
             self.is_locked = True
 
         self.subject = posts_elem.find_element_by_xpath(
