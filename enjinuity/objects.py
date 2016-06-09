@@ -180,7 +180,7 @@ class Post(FObject):
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
         tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
         self.message = parse(tree, bbcode_formatter)
-
+        
     def get_uid(self):
         return self.uid
 
@@ -226,8 +226,15 @@ class Thread(FObject):
           './/div[@class="contentbox posts"]')
 
         # TODO Flags enum
-        self.flags = posts_elem.find_element_by_xpath(
+        flags = posts_elem.find_element_by_xpath(
           'div[1]/div[3]/span/div[1]/div[1]').get_attribute('class').split(' ')
+        self.is_sticky = False
+        self.is_locked = False
+        if "sticky" in self.flags:
+            self.is_sticky = True
+        if "closed" in self.flags:
+            self.is_locked = True
+
         self.subject = posts_elem.find_element_by_xpath(
           'div[1]/div[3]/span/h1').text
 
