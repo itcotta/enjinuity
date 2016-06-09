@@ -171,9 +171,10 @@ class Post(FObject):
 
         # NOTE Enjin does not store the editor of a post, assume it's
         #      the poster
-        self.edituid = self.uid
+        self.edituid = 0
         self.edittime = 0
         if len(time_list) > 1 and len(time_list[-1]) > 2:
+            self.edituid = self.uid
             self.edittime = get_datetime(time_list[-1]).timestamp()
 
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
