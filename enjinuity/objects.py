@@ -156,8 +156,8 @@ class FObject:
 
 class Post(FObject):
 
-    def __init__(self, elem, thread, subject, users):
-        super().__init__(thread)
+    def __init__(self, elem, subject, users, parent):
+        super().__init__(parent)
         self.subject = subject
         self.author = elem.find_element_by_xpath('td[1]/div[1]/div[1]/a').text
         self.uid = users.get_uid(self.author)
@@ -216,14 +216,14 @@ class Post(FObject):
         raise NotImplementedError
 
 
-# http://.../viewthread/... page
 class Thread(FObject):
 
-    def __init__(self, elem, views, forum, users):
-        super().__init__(forum)
+    def __init__(self, views, url, browser, users, parent):
+        super().__init__(parent)
         self.views = views
-        posts_elem = elem.find_element_by_xpath(
-          '//div[@class="contentbox posts"]')
+        browser.get(url)
+        posts_elem = browser.find_element_by_xpath(
+          './/div[@class="contentbox posts"]')
 
         # TODO Flags enum
         self.flags = posts_elem.find_element_by_xpath(
@@ -235,7 +235,7 @@ class Thread(FObject):
           'div[2]//tr[contains(@class, "row")]')
 
         # First post
-        op = Post(posts[0], self, self.subject, users)
+        op = Post(posts[0], self.subject, users, self)
         self.opuid = op.get_uid()
         self.opauthor = op.get_author()
         self.optime = op.get_posttime()
@@ -245,13 +245,29 @@ class Thread(FObject):
         # Rest of the replies
         re_subject = 'RE: ' + self.subject
         for p in posts[1:]:
-            reply = Post(p, self, re_subject, users)
+            reply = Post(p, re_subject, users, self)
             self.children.append(reply)
         self.replies = len(self.children)
 
-        lp = self.children[-1]
+        # Are there more pages?
+        try:
+            pages = browser.find_element_by_xpath(
+              ('.//div[@class="widgets top"]/div[@class="right"]'
+               '/div[1]/div[1]/input'))
+            pages = int(pages.get_attribute('maxlength'))
+            for i in range(2, pages + 1):
+                browser.get("{}/page/{}".format(url, i))
+                next_posts = browser.find_elements_by_xpath(
+                  ('.//div[@class="contentbox posts"]/div[2]'
+                   '//tr[contains(@class, "row")]'))
+                for p in next_posts:
+                    reply = Post(p, re_subject, users, self)
+                    self.children.append(reply)
+        except NoSuchElementException:
+            pass
 
         # Last post
+        lp = self.children[-1]
         self.lptime = lp.get_posttime()
         self.lpauthor = lp.get_author()
         self.lpuid = lp.get_uid()
@@ -263,32 +279,52 @@ class Thread(FObject):
         raise NotImplementedError
 
 
-# http://.../viewforum/... page
 class Forum(FObject):
 
-    def __init__(self, name, desc, elem, parent):
+    def __init__(self, name, desc, url, browser, parent):
         super().__init__(parent)
-        # TODO If a forum is an external link
         self.name = name
         self.desc = desc
+        # TODO If a forum is an external link
+        browser.get(url)
+        body = browser.find_element_by_tag_name('body')
 
-        # Subforums
+        # Are there subforums?
         try:
-            subforums = elem.find_elements_by_xpath(
-              ('//div[contains(@class, "contentbox") and '
-               'contains(@class, "subforums-block")]/div[2]'
-               '//tr[contains(@class, "row")]'))
-            for sf in subforums:
-                sf_name = sf.find_element_by_xpath('td[2]/div[1]/a')
-                sf_desc = sf.find_element_by_xpath('td[2]/div[2]')
-                sf_url = sf_name.get_attribute('href')
-                self.children_to_get.append((sf_name, sf_desc, sf_url))
+            self._do_init_subforums(body)
         except NoSuchElementException:
             pass
 
-        # Threads
-        threads = elem.find_elements_by_xpath(
-          ('//div[@class="contentbox threads"]/div[2]'
+        # Get threads from the first page
+        self._do_init_threads(body)
+
+        # Are there more pages?
+        try:
+            pages = body.find_element_by_xpath(
+              ('.//div[@class="widgets top"]/div[@class="right"]'
+               '/div[1]/div[1]/input'))
+            pages = int(pages.get_attribute('maxlength'))
+            for i in range(2, pages + 1):
+                browser.get("{}/page/{}".format(url, i))
+                next_body = browser.find_element_by_tag_name('body')
+                self._do_init_threads(next_body)
+        except NoSuchElementException:
+            pass
+
+    def _do_init_subforums(self, body):
+        subforums = body.find_elements_by_xpath(
+          ('.//div[contains(@class, "contentbox") and '
+           'contains(@class, "subforums-block")]/div[2]'
+           '//tr[contains(@class, "row")]'))
+        for sf in subforums:
+            sf_name = sf.find_element_by_xpath('td[2]/div[1]/a')
+            sf_desc = sf.find_element_by_xpath('td[2]/div[2]').text
+            sf_url = sf_name.get_attribute('href')
+            self.children_to_get.append((sf_name.text, sf_desc, sf_url))
+
+    def _do_init_threads(self, body):
+        threads = body.find_elements_by_xpath(
+          ('.//div[@class="contentbox threads"]/div[2]'
            '//tr[contains(@class, "row")]'))
         for t in threads:
             t_name = t.find_element_by_xpath(
@@ -297,29 +333,25 @@ class Forum(FObject):
             t_url = t_name.get_attribute('href')
             t_views = t.find_element_by_xpath(
               ('td[contains(@class, "views")]')).text
-            self.children_to_get.append((t_url, t_views))
+            self.children_to_get.append((t_views, t_url))
 
     def get_children(self, browser, users):
         for child in self.children_to_get:
             # Check if the child is a subforum or thread
             if len(child) == 3:
-                c_name, c_desc, c_url = child
-                browser.get(c_url)
-                c_body = browser.find_element_by_tag_name('body')
-                forum = Forum(c_name, c_desc, c_body, self)
+                sf_name, sf_desc, sf_url = child
+                forum = Forum(sf_name, sf_desc, sf_url, browser, self)
                 self.children.append(forum)
             else:
-                c_url, c_views = child
-                browser.get(c_url)
-                c_body = browser.find_element_by_tag_name('body')
-                thread = Thread(c_body, c_views, self, users)
+                t_views, t_url = child
+                thread = Thread(t_views, t_url, browser, users, self)
                 self.children.append(thread)
 
         for child in self.children:
             try:
                 child.get_children(browser, users)
             except AttributeError:
-                pass
+                return
 
     def format_mybb(self):
         raise NotImplementedError
@@ -343,10 +375,8 @@ class Category(FObject):
             self.children_to_get.append((f_name.text, f_desc.text, f_url))
 
     def get_children(self, browser, users):
-        for c_name, c_desc, c_url in self.children_to_get:
-            browser.get(c_url)
-            c_body = browser.find_element_by_tag_name('body')
-            forum = Forum(c_name, c_desc, c_body, self)
+        for f_name, f_desc, f_url in self.children_to_get:
+            forum = Forum(f_name, f_desc, f_url, browser, self)
             self.children.append(forum)
 
         for forum in self.children:
