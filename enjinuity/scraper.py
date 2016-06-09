@@ -36,8 +36,14 @@ def dump_cookies(url, user, passwd, where):
 
 class Scraper:
 
-    def __init__(self, url, cookies, users):
-        self.browser = webdriver.Firefox()
+    def __init__(self, url, cookies, users, driver="Firefox"):
+        self.browser = None
+        if driver == "Chrome":
+            self.browser = webdriver.Chrome()
+        elif driver == "Firefox":
+            self.browser = webdriver.Firefox()
+        else:
+            raise AttributeError("Invalid Selenium WebDriver")
         self.browser.get('http://www.enjin.com/')
         for c in cookies:
             if c['domain'] == '.enjin.com':
@@ -58,7 +64,8 @@ class Scraper:
         self.root = []
 
     def __del__(self):
-        self.browser.quit()
+        if self.browser:
+            self.browser.quit()
 
     def run(self):
         categories = self.browser.find_elements_by_xpath(
