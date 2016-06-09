@@ -231,7 +231,10 @@ class Forum(FObject):
               ('td[2]/a[contains(@class, "thread-view") and '
                        'contains(@class, "thread-subject")]'))
             t_url = t_name.get_attribute('href')
-            self.children_to_get.append((t_url,))
+            t_number_views = t_name.find_element_by_xpath(
+            ('//*[contains(@class, "c view")]'))
+            t_views = t_number_views.get_attribute('td')
+            self.children_to_get.append((t_url,t_views))
 
     def get_children(self, browser, users):
         for child in self.children_to_get:
