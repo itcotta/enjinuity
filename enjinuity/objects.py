@@ -155,9 +155,10 @@ class Post(FObject):
 # http://.../viewthread/... page
 class Thread(FObject):
 
-    def __init__(self, elem, forum, users):
+    def __init__(self, elem, forum, users, views):
         # TODO Thread views from parent
         super().__init__(forum)
+        self.c_views = views
         posts_elem = elem.find_element_by_xpath(
           '//div[@class="contentbox posts"]')
 
@@ -212,7 +213,7 @@ class Forum(FObject):
         try:
             subforums = elem.find_elements_by_xpath(
               ('//div[contains(@class, "contentbox") and '
-                     'contains(@class, "subforums-block")]/div[2]'
+               'contains(@class, "subforums-block")]/div[2]'
                '//tr[contains(@class, "row")]'))
             for sf in subforums:
                 sf_name = sf.find_element_by_xpath('td[2]/div[1]/a')
@@ -229,9 +230,12 @@ class Forum(FObject):
         for t in threads:
             t_name = t.find_element_by_xpath(
               ('td[2]/a[contains(@class, "thread-view") and '
-                       'contains(@class, "thread-subject")]'))
+               'contains(@class, "thread-subject")]'))
             t_url = t_name.get_attribute('href')
-            self.children_to_get.append((t_url,))
+            t_number_views = t_name.find_element_by_xpath(
+              ('td[contains(@class, "views")]'))
+            t_views = t_number_views.text
+            self.children_to_get.append((t_url,t_views))
 
     def get_children(self, browser, users):
         for child in self.children_to_get:
@@ -244,9 +248,10 @@ class Forum(FObject):
                 self.children.append(forum)
             else:
                 c_url = child[0]
+                c_views = child[1]
                 browser.get(c_url)
                 c_body = browser.find_element_by_tag_name('body')
-                thread = Thread(c_body, self, users)
+                thread = Thread(c_body, self, users, c_views)
                 self.children.append(thread)
 
         for child in self.children:
