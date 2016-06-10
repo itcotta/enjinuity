@@ -12,7 +12,6 @@
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
 import json
 import pickle
-import psycopg2
 import sys
 
 if __name__ == '__main__':
@@ -32,6 +31,7 @@ if __name__ == '__main__':
     tbl_prefix = config['tbl_prefix']
 
     if dbtype == 'pgsql':
+        import psycopg2
         conn = psycopg2.connect(host=hostname, user=username, password=password,
                                 database=dbname)
     elif dbtype == 'mysql':
