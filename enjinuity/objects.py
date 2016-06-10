@@ -47,11 +47,14 @@ def bbcode_formatter(element, children):
     if element.tag == 'title':
         return ""
     if element.tag == 'span':
-        if "font-size" in element.get('style'):
+        style_list = element.get('style')
+        if not style_list:
+            return children
+        if "font-size" in style_list:
             size = element.get('style').split(':')
             return "[size={size}]{text}[/size]".format(text=children,
                                                        size=size[1])
-        elif "color" in element.get('style'):
+        elif "color" in style_list:
             hexcolor = element.get('style').split('#')
             return "[color=#{color}]{text}[/color]".format(text=children,
                                                            color=hexcolor[1])
