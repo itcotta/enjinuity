@@ -15,45 +15,57 @@ import pickle
 import psycopg2
 import sys
 
-with open('config.json', 'r') as f:
-    config = json.load(f)
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        print('usage: ')
+        sys.exit()
 
-hostname = config['database']['hostname']
-username = config['database']['username']
-password = config['database']['password']
-dbname = config['database']['dbname']
-tbl_prefix = config['database']['tbl_prefix']
+    f = open('config.json', 'r')
+    config = json.load(f)['database']
+    f.close()
 
-conn = psycopg2.connect(host=hostname, user=username, password=password,
-                        database=dbname)
-cur = conn.cursor()
+    dbtype = config['type']
+    hostname = config['hostname']
+    username = config['username']
+    password = config['password']
+    dbname = config['dbname']
+    tbl_prefix = config['tbl_prefix']
 
-if sys.argv[1] == 'users':
-    users = pickle.load(open('users.pkl', 'rb'))
-    for user in users:
-        query = """INSERT INTO users VALUES (
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                   %s, %s, %s, %s);"""
-        cur.execute(query, user)
-    conn.commit()
-elif sys.argv[1] == 'forums':
-    forums = pickle.load(open('forums.pkl', 'rb'))
-    for forum in forums:
-        query_head = 'INSERT INTO forums VALUES ('
-        query_body = ''.join(['%s, ' for _ in range(len(forum) - 1)])
+    if dbtype == 'pgsql':
+        conn = psycopg2.connect(host=hostname, user=username, password=password,
+                                database=dbname)
+    elif dbtype == 'mysql':
+        raise ValueError('Unsupported database type {}'.format(dbtype))
+    else:
+        raise ValueError('Unsupported database type {}'.format(dbtype))
+
+    cur = conn.cursor()
+
+    # Expect a users.pkl
+    if sys.argv[1] == 'users':
+        users = pickle.load(open(sys.argv[2], 'rb'))
+        query_head = 'INSERT INTO {}users VALUES ('.format(tbl_prefix)
+        query_body = ''.join(['%s, ' for _ in range(len(users[0]) - 1)])
         query_tail = '%s);'
-        cur.execute(query_head + query_body + query_tail, forum)
-    conn.commit()
-else:
-    # print some help here
-    sys.exit()
-
-cur.close()
-conn.close()
+        query = query_head + query_body + query_tail
+        for user in users:
+            cur.execute(query, user)
+        conn.commit()
+    # Expect a db.pkl
+    elif sys.argv[1] == 'forums':
+        db = pickle.load(open(sys.argv[2], 'rb'))
+        for table, rows in db.items():
+            query_head = 'INSERT INTO {}{} VALUES ('.format(tbl_prefix, table)
+            query_body = ''.join(['%s, ' for _ in range(len(db[table][0]) - 1)])
+            query_tail = '%s);'
+            query = query_head + query_body + query_tail
+            for row in rows:
+                cur.execute(query, row)
+            conn.commit()
+    else:
+        print('usage: ')
+        cur.close()
+        conn.close()
+        sys.exit()
+    cur.close()
+    conn.close()
