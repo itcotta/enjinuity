@@ -1,6 +1,4 @@
 {
-    "username": "",
-    "password": "",
     "database": {
         "type": "pgsql",
         "hostname": "localhost",
@@ -8,9 +6,5 @@
         "password": "",
         "dbname": "",
         "tbl_prefix": ""
-    },
-    "new_user": {
-        "passwordmd5": "",
-        "email": "change@me.com"
     }
 }
