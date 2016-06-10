@@ -14,8 +14,14 @@ import pickle
 from selenium import webdriver
 from urllib.parse import urlparse
 
-def dump_cookies(url, user, passwd, where):
-    browser = webdriver.Firefox()
+def dump_cookies(url, user, passwd, filename, driver='Firefox'):
+    browser = None
+    if driver == 'Firefox':
+        browser = webdriver.Firefox()
+    elif driver == 'Chrome':
+        browser = webdriver.Chrome()
+    else:
+        raise AttributeError('Invalid Selenium WebDriver')
     browser.get(url)
     username = browser.find_element_by_xpath(
       ('//*[@id="section-main"]/div/div[3]/div[2]/div[8]/table/tbody/tr/td/div'
@@ -30,20 +36,20 @@ def dump_cookies(url, user, passwd, where):
        '/div/div/div/table/tbody/tr/td[2]/form/div[5]/div/input'))
     submit.click()
     cookies = browser.get_cookies()
-    pickle.dump(cookies, open(where, 'wb'))
+    pickle.dump(cookies, open(filename, 'wb'))
     browser.quit()
 
 
 class Scraper:
 
-    def __init__(self, url, cookies, users, driver="Firefox"):
+    def __init__(self, url, cookies, users, driver='Firefox'):
         self.browser = None
-        if driver == "Firefox":
+        if driver == 'Firefox':
             self.browser = webdriver.Firefox()
-        elif driver == "Chrome":
+        elif driver == 'Chrome':
             self.browser = webdriver.Chrome()
         else:
-            raise AttributeError("Invalid Selenium WebDriver")
+            raise AttributeError('Invalid Selenium WebDriver')
         self.browser.get('http://www.enjin.com/')
         for c in cookies:
             if c['domain'] == '.enjin.com':

@@ -361,6 +361,14 @@ class Forum(FObject):
         except NoSuchElementException:
             pass
 
+        # Make sure this forum contains threads before continuing
+        nr_threads = body.find_element_by_xpath(
+          ('.//div[@class="contentbox threads"]/div[1]'
+           '/div[@class="text-right"]')).text
+        nr_threads = re.split('\s+·\s+(\d+) threads', nr_threads)[1]
+        if int(nr_threads) == 0:
+            return
+
         # Get threads from the first page
         self._do_init_threads(body)
 
@@ -393,6 +401,10 @@ class Forum(FObject):
           ('.//div[@class="contentbox threads"]/div[2]'
            '//tr[contains(@class, "row")]'))
         for t in threads:
+            # Ignore threads that are marked as 'moved', since we'll pick
+            # them up from their destination
+            if 'moved' in t.get_attribute('class').split(' '):
+                continue
             t_name = t.find_element_by_xpath(
               ('td[2]/a[contains(@class, "thread-view") and '
                        'contains(@class, "thread-subject")]'))
