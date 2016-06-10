@@ -38,17 +38,16 @@ class Scraper:
 
     def __init__(self, url, cookies, users, driver="Firefox"):
         self.browser = None
-        if driver == "Chrome":
-            self.browser = webdriver.Chrome()
-        elif driver == "Firefox":
+        if driver == "Firefox":
             self.browser = webdriver.Firefox()
+        elif driver == "Chrome":
+            self.browser = webdriver.Chrome()
         else:
             raise AttributeError("Invalid Selenium WebDriver")
         self.browser.get('http://www.enjin.com/')
         for c in cookies:
             if c['domain'] == '.enjin.com':
                 self.browser.add_cookie(c)
-        self.url = url
         self.browser.get(url)
         hostname = urlparse(url).hostname
         for c in cookies:
@@ -57,11 +56,8 @@ class Scraper:
         self.browser.refresh()
         self.users = users
 
-        self.fid = 1
-        self.tid = 1
-        self.pid = 1
-
-        self.root = []
+        self.db = {}
+        self.children = []
 
     def __del__(self):
         if self.browser:
@@ -73,7 +69,14 @@ class Scraper:
                    'contains(@class, "category")]'))
         for c in categories:
             category = enjinuity.objects.Category(c)
-            self.root.append(category)
+            self.children.append(category)
 
-        # XXX Just one category for testing
-        self.root[0].get_children(self.browser, self.users)
+        for child in self.children:
+            child.get_children(self.browser, self.users)
+
+    def dump_mybb(self, filename):
+        for table in ['forums', 'threads', 'posts']:
+            self.db[table] = []
+        for child in self.children:
+            child.do_dump_mybb(self.db)
+        pickle.dump(self.db, open(filename, 'wb'))

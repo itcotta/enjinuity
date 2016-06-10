@@ -12,7 +12,7 @@
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
 import lxml.html
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from selenium.common.exceptions import NoSuchElementException
 
 def parse(tree, func, *args, **kwargs):
@@ -148,16 +148,22 @@ def get_datetime(string):
 
 class FObject:
 
-    def __init__(self, parent):
+    def __init__(self, oid, parent):
+        self.id = oid
         self.parent = parent
         self.children = []
         self.children_to_get = []
 
+    def get_id(self):
+        return self.id
+
 
 class Post(FObject):
+    pid = 1
 
     def __init__(self, elem, subject, users, parent):
-        super().__init__(parent)
+        super().__init__(Post.pid, parent)
+        Post.pid += 1
         self.subject = subject
         self.author = elem.find_element_by_xpath('td[1]/div[1]/div[1]/a').text
         self.uid = users.get_uid(self.author)
@@ -180,7 +186,7 @@ class Post(FObject):
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
         tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
         self.message = parse(tree, bbcode_formatter)
-        
+
     def get_uid(self):
         return self.uid
 
@@ -190,9 +196,16 @@ class Post(FObject):
     def get_posttime(self):
         return self.posttime
 
-    def format_mybb(self, pid, tid, fid, rt):
-        out = [
-            pid,        # pid
+    def do_dump_mybb(self, db):
+        table, row = self.format_mybb()
+        db[table].append(row)
+
+    def format_mybb(self):
+        tid = self.parent.get_id()
+        fid = self.parent.parent.get_id()
+        rt = self.parent.mybb_replyto(self)
+        row = [
+            self.id,    # pid
             tid,
             rt,         # replyto, 0 for OP, 1 otherwise
             fid,
@@ -210,29 +223,30 @@ class Post(FObject):
             '',         # editreason
             1           # visible
         ]
-        return out
+        return ('posts', row)
 
     def format_phpbb(self):
         raise NotImplementedError
 
 
 class Thread(FObject):
+    tid = 1
 
     def __init__(self, views, url, browser, users, parent):
-        super().__init__(parent)
+        super().__init__(Thread.tid, parent)
+        Thread.tid += 1
         self.views = views
         browser.get(url)
         posts_elem = browser.find_element_by_xpath(
           './/div[@class="contentbox posts"]')
+        reply_cnt = posts_elem.find_element_by_xpath(
+          'div[1]/div[@class="text-right"]').text.split(' ')[0]
 
+        # TODO Polls
         flags = posts_elem.find_element_by_xpath(
           'div[1]/div[3]/span/div[1]/div[1]').get_attribute('class').split(' ')
-        self.is_sticky = False
-        self.is_locked = False
-        if "sticky" in flags:
-            self.is_sticky = True
-        if "closed" in flags:
-            self.is_locked = True
+        self.is_sticky = 1 if 'sticky' in flags else 0
+        self.is_locked = 1 if 'locked' in flags else 0
 
         self.subject = posts_elem.find_element_by_xpath(
           'div[1]/div[3]/span/h1').text
@@ -245,7 +259,7 @@ class Thread(FObject):
         self.opuid = op.get_uid()
         self.opauthor = op.get_author()
         self.optime = op.get_posttime()
-        # TODO OP pid
+        self.oppid = op.get_id()
         self.children.append(op)
 
         # Rest of the replies
@@ -253,7 +267,6 @@ class Thread(FObject):
         for p in posts[1:]:
             reply = Post(p, re_subject, users, self)
             self.children.append(reply)
-        self.replies = len(self.children)
 
         # Are there more pages?
         try:
@@ -272,25 +285,72 @@ class Thread(FObject):
         except NoSuchElementException:
             pass
 
+        self.replies = len(self.children) - 1
+
+        assert int(reply_cnt) == self.replies
+
         # Last post
         lp = self.children[-1]
         self.lptime = lp.get_posttime()
         self.lpauthor = lp.get_author()
         self.lpuid = lp.get_uid()
 
+    def mybb_replyto(self, post):
+        if post is self.children[0]:
+            return 0
+        else:
+            return 1
+
+    def do_dump_mybb(self, db):
+        table, row = self.format_mybb()
+        db[table].append(row)
+        for child in self.children:
+            child.do_dump_mybb(db)
+
     def format_mybb(self):
-        raise NotImplementedError
+        fid = self.parent.get_id()
+        row = [
+            self.id,        # tid
+            fid,
+            self.subject,
+            0,              # prefix
+            0,              # icon
+            0,              # poll
+            self.opuid,
+            self.opauthor,
+            self.optime,
+            self.oppid,
+            self.lptime,
+            self.lpauthor,
+            self.lpuid,
+            self.views,
+            self.replies,
+            self.is_locked,
+            self.is_sticky,
+            0,              # numratings
+            0,              # totalratings
+            '',             # notes
+            1,              # visible
+            0,              # unapprovedposts
+            0,              # deletedposts
+            0,              # attachmentcount
+            0               # deletetime
+        ]
+        return ('threads', row)
 
     def format_phpbb(self):
         raise NotImplementedError
 
 
 class Forum(FObject):
+    fid = 1
 
     def __init__(self, name, desc, url, browser, parent):
-        super().__init__(parent)
+        super().__init__(Forum.fid, parent)
+        Forum.fid += 1
         self.name = name
         self.desc = desc
+        self.parentlist = self.parent.get_parentlist() + ',{}'.format(self.id)
         # TODO If a forum is an external link
         browser.get(url)
         body = browser.find_element_by_tag_name('body')
@@ -341,6 +401,9 @@ class Forum(FObject):
               ('td[contains(@class, "views")]')).text
             self.children_to_get.append((t_views, t_url))
 
+    def get_parentlist(self):
+        return self.parentlist
+
     def get_children(self, browser, users):
         for child in self.children_to_get:
             # Check if the child is a subforum or thread
@@ -359,8 +422,59 @@ class Forum(FObject):
             except AttributeError:
                 return
 
+    def do_dump_mybb(self, db):
+        table, row = self.format_mybb()
+        db[table].append(row)
+        for child in self.children:
+            child.do_dump_mybb(db)
+
     def format_mybb(self):
-        raise NotImplementedError
+        # pid in this case is parent (category) id
+        pid = self.parent.get_id()
+        row = [
+            self.id,    # fid
+            self.name,
+            self.desc,
+            '',         # linkto
+            'f',        # type
+            pid,
+            self.parentlist,
+            1,          # disporder
+            1,          # active
+            1,          # open
+            0,          # threads
+            0,          # posts
+            0,          # lastpost
+            0,          # lastposter
+            0,          # lastposteruid
+            0,          # lastposttid
+            '',         # lastpostsubject
+            0,          # allowhtml
+            1,          # allowmycode
+            1,          # allowsmilies
+            1,          # allowimgcode
+            1,          # allowvideocode
+            1,          # allowpicons
+            1,          # allowtratings
+            1,          # usepostcounts
+            1,          # usethreadcounts
+            0,          # requireprefix
+            '',         # password
+            1,          # showinjump
+            0,          # style
+            0,          # overridestyle
+            0,          # rulestype
+            '',         # rulestitle
+            '',         # rules
+            0,          # unapprovedthreads
+            0,          # unapprovedposts
+            0,          # deletedthreads
+            0,          # deletedposts
+            0,          # defaultdatecut
+            '',         # defaultsortby
+            ''          # defaultsortorder
+        ]
+        return ('forums', row)
 
     def format_phpbb(self):
         raise NotImplementedError
@@ -370,8 +484,10 @@ class Category(FObject):
 
     def __init__(self, elem):
         # A category has no parents
-        super().__init__(None)
+        super().__init__(Forum.fid, None)
+        Forum.fid += 1
         self.name = elem.find_element_by_xpath('div[1]/div[3]/span').text
+        self.parentlist = str(self.id)
 
         forums = elem.find_elements_by_xpath('div[2]//td[@class="c forum"]')
         for f in forums:
@@ -379,6 +495,9 @@ class Category(FObject):
             f_desc = f.find_element_by_xpath('div[2]')
             f_url = f_name.get_attribute('href')
             self.children_to_get.append((f_name.text, f_desc.text, f_url))
+
+    def get_parentlist(self):
+        return self.parentlist
 
     def get_children(self, browser, users):
         for f_name, f_desc, f_url in self.children_to_get:
@@ -388,8 +507,57 @@ class Category(FObject):
         for forum in self.children:
             forum.get_children(browser, users)
 
+    def do_dump_mybb(self, db):
+        table, row = self.format_mybb()
+        db[table].append(row)
+        for child in self.children:
+            child.do_dump_mybb(db)
+
     def format_mybb(self):
-        raise NotImplementedError
+        row = [
+            self.id,    # fid
+            self.name,
+            '',         # description
+            '',         # linkto
+            'c',        # type
+            0,          # pid
+            self.parentlist,
+            1,          # disporder
+            1,          # active
+            1,          # open
+            0,          # threads
+            0,          # posts
+            0,          # lastpost
+            0,          # lastposter
+            0,          # lastposteruid
+            0,          # lastposttid
+            '',         # lastpostsubject
+            0,          # allowhtml
+            1,          # allowmycode
+            1,          # allowsmilies
+            1,          # allowimgcode
+            1,          # allowvideocode
+            1,          # allowpicons
+            1,          # allowtratings
+            1,          # usepostcounts
+            1,          # usethreadcounts
+            0,          # requireprefix
+            '',         # password
+            1,          # showinjump
+            0,          # style
+            0,          # overridestyle
+            0,          # rulestype
+            '',         # rulestitle
+            '',         # rules
+            0,          # unapprovedthreads
+            0,          # unapprovedposts
+            0,          # deletedthreads
+            0,          # deletedposts
+            0,          # defaultdatecut
+            '',         # defaultsortby
+            ''          # defaultsortorder
+        ]
+        return ('forums', row)
 
     def format_phpbb(self):
         raise NotImplementedError
