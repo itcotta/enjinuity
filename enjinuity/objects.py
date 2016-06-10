@@ -10,6 +10,7 @@
 # You should have received a copy of the CC0 Public Domain Dedication
 # along with this software. If not, see
 # <http://creativecommons.org/publicdomain/zero/1.0/>.
+import lxml.etree
 import lxml.html
 import re
 from datetime import datetime, timedelta, timezone
@@ -187,8 +188,11 @@ class Post(FObject):
             self.edittime = get_datetime(time_list[-1]).timestamp()
 
         msg_elem = elem.find_element_by_xpath('td[2]/div[1]/div[1]')
-        tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
-        self.message = parse(tree, bbcode_formatter)
+        try:
+            tree = lxml.html.fromstring(msg_elem.get_attribute('innerHTML'))
+            self.message = parse(tree, bbcode_formatter)
+        except lxml.etree.ParserError:
+            self.message = ''
 
     def get_uid(self):
         return self.uid
