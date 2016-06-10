@@ -273,10 +273,9 @@ class Thread(FObject):
 
         # Are there more pages?
         try:
-            pages = browser.find_element_by_xpath(
+            pages = int(browser.find_element_by_xpath(
               ('.//div[@class="widgets top"]/div[@class="right"]'
-               '/div[1]/div[1]/input'))
-            pages = int(pages.get_attribute('maxlength'))
+               '/div[1]/span[2]')).text.split(' ')[1])
             for i in range(2, pages + 1):
                 browser.get("{}/page/{}".format(url, i))
                 next_posts = browser.find_elements_by_xpath(
@@ -289,7 +288,6 @@ class Thread(FObject):
             pass
 
         self.replies = len(self.children) - 1
-
         assert int(reply_cnt) == self.replies
 
         # Last post
