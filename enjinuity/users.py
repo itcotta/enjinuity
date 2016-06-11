@@ -33,7 +33,7 @@ class Users:
         self.uid = uid
 
         # Database-specific output
-        self.out = []
+        self.db = {}
         # Map of username->uid
         self.user_map = {}
 
@@ -44,20 +44,21 @@ class Users:
             return 0
 
     def dump(self, filename):
-        pickle.dump(self.out, open(filename, 'wb'))
+        pickle.dump(self.db, open(filename, 'wb'))
 
 
 class MyBBUsers(Users):
 
     def __init__(self, users, email, passwd, uid):
         super().__init__(users, email, passwd, uid)
+        self.db['users'] = []
         # http://docs.mybb.com/1.6/Database-Tables-mybb-users/
         for user in self.users:
             salt = random_string(8)
-            saltedpw = md5(md5(salt) + self.passwd)
+            saltedpw = md5(md5(salt) + md5(self.passwd))
             loginkey = random_string(50)
             now = int(time.time())
-            self.out.append([
+            self.db['users'].append([
                 self.uid,
                 user,
                 saltedpw,
@@ -143,5 +144,18 @@ class MyBBUsers(Users):
                 '',         # usernotes
                 0           # sourceeditor
             ])
+            self.user_map[user] = self.uid
+            self.uid += 1
+
+
+class phpBBUsers(Users):
+
+    def __init__(self, users, email, passwd, uid):
+        super().__init__(users, email, passwd, uid)
+        # Create a list of rows to insert into table 'users'
+        #self.db['users'] = []
+        for user in users:
+            # Create the row and insert it into the list of rows.
+            #self.db['users'].append([...])
             self.user_map[user] = self.uid
             self.uid += 1
