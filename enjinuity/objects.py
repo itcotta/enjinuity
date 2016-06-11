@@ -36,8 +36,7 @@ def bbcode_formatter(element, children):
         return "[url={link}]{text}[/url]".format(link=element.get('href'),
                                                  text=children)
     if element.tag == 'img':
-        return "[img={link}]{text}[/img]".format(link=element.get('src'),
-                                                 text=children)
+        return "[img]{link}[/img]".format(link=element.get('src'))
     if element.tag in ['b', 'strong']:
         return "[b]{text}[/b]".format(text=children)
     if element.tag in ['em', 'i']:
