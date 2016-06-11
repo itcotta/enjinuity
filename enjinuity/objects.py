@@ -170,7 +170,9 @@ class Post(FObject):
         super().__init__(Post.pid, parent)
         Post.pid += 1
         self.subject = subject
-        self.author = elem.find_element_by_xpath('td[1]/div[1]/div[1]/a').text
+        self.author = elem.find_element_by_xpath(
+          'td[1]/div[@class="cell"]/div[@class="username"]/a').get_attribute(
+          'innerHTML')
         self.uid = users.get_uid(self.author)
 
         # Posted Jan 23, 15 · OP · Last edited Apr 29, 16
