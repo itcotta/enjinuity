@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # enjinuity
 # Written in 2016 by David H. Wei <https://github.com/spikeh/>
 #
