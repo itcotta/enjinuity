@@ -15,6 +15,7 @@ import lxml.html
 import re
 from datetime import datetime, timedelta, timezone
 from selenium.common.exceptions import NoSuchElementException
+from urllib.parse import urlparse
 
 def parse(tree, func, *args, **kwargs):
     result = []
@@ -356,7 +357,10 @@ class Forum(FObject):
         self.name = name
         self.desc = desc
         self.parentlist = self.parent.get_parentlist() + ',{}'.format(self.id)
-        # TODO If a forum is an external link
+        self.linkto = ''
+        if urlparse(url).hostname.split('.')[-2] != 'enjin':
+            self.linkto = url
+            return
         browser.get(url)
         body = browser.find_element_by_tag_name('body')
 
@@ -452,7 +456,7 @@ class Forum(FObject):
             self.id,    # fid
             self.name,
             self.desc,
-            '',         # linkto
+            self.linkto,
             'f',        # type
             pid,
             self.parentlist,
