@@ -33,8 +33,9 @@ def bbcode_formatter(element, children):
     if element.tag == 'br':
         return "\r".rstrip()
     if element.tag == 'a':
-        return "[url={link}]{text}[/url]".format(link=element.get('href'),
-                                                 text=children)
+        if(children):
+            return "[url={link}]{text}[/url]".format(link=element.get('href'),
+               text=children)
     if element.tag == 'img':
         return "[img]{link}[/img]".format(link=element.get('src'))
     if element.tag in ['b', 'strong']:
