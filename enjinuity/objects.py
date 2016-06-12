@@ -31,15 +31,18 @@ def parse(tree, func, *args, **kwargs):
 
 def bbcode_formatter(element, children):
     if element.tag == 'br':
-        return "\r".rstrip()
+        return '\r'.rstrip()
     if element.tag == 'a':
-        if(children):
+        if children:
             return "[url={link}]{text}[/url]".format(link=element.get('href'),
-               text=children)
+                                                     text=children)
+        else:
+            return ''
     if element.tag == 'img':
-        if(element.get('class')=="bbcode_smiley"):
+        if element.get('class') == 'bbcode_smiley':
             return element.get('title')
-        return "[img]{link}[/img]".format(link=element.get('src'))
+        else:
+            return "[img]{link}[/img]".format(link=element.get('src'))
     if element.tag in ['b', 'strong']:
         return "[b]{text}[/b]".format(text=children)
     if element.tag in ['em', 'i']:
@@ -49,16 +52,16 @@ def bbcode_formatter(element, children):
     if element.tag == 'u':
         return "[u]{text}[/u]".format(text=children)
     if element.tag == 'title':
-        return ""
+        return ''
     if element.tag == 'span':
         style_list = element.get('style')
         if not style_list:
             return children
-        if "font-size" in style_list:
+        if 'font-size' in style_list:
             size = element.get('style').split(':')
             return "[size={size}]{text}[/size]".format(text=children,
                                                        size=size[1])
-        elif "color" in style_list:
+        elif 'color' in style_list:
             hexcolor = element.get('style').split('#')
             return "[color=#{color}]{text}[/color]".format(text=children,
                                                            color=hexcolor[1])
@@ -68,20 +71,23 @@ def bbcode_formatter(element, children):
         secondSplit = firstSplit[0].split('/')
         return ("[video=youtube]http://youtube.com/watch?v={value}"
                 "[/video]").format(value=secondSplit[4])
-    if element.tag =='ol': #numered list
+    # Numered list
+    if element.tag == 'ol':
         return "[list=1]{text}[/list]".format(text=children)
-    if element.tag =='ul': #bullepoint list
+    # Bullet list
+    if element.tag == 'ul':
         return "[list]{text}[/list]".format(text=children)
-    if element.tag =='li': #list item
+    # List item
+    if element.tag == 'li':
         return "[*]{text}".format(text=children)
-    if element.tag =='strike':
+    if element.tag == 'strike':
         return "[s]{text}[/s]".format(text=children)
-    if element.tag =='div':
-        if(element.get('style') == 'text-align:center'):
+    if element.tag == 'div':
+        if element.get('style') == 'text-align:center':
             return "[align=center]{text}[align]".format(text=children)
-        elif(element.get('style') == 'text-align:left'):
+        elif element.get('style') == 'text-align:left':
             return "[align=left]{text}[align]".format(text=children)
-        elif(element.get('style') == 'text-align:right'):
+        elif element.get('style') == 'text-align:right':
             return "[align=right]{text}[align]".format(text=children)
     if children:
         return children.rstrip()
