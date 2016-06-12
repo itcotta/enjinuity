@@ -33,6 +33,7 @@ fontpx_map = {
     '8px': 'xx-small',
     '10px': 'x-small',
     '12px': 'small',
+    '14px': 'medium',
     '18px': 'x-large',
     '24px': 'xx-large'
 }
