@@ -37,7 +37,7 @@ if __name__ == '__main__':
     elif dbtype == 'mysql':
         import pymysql
         conn = pymysql.connect(host=hostname, user=username, password=password,
-                                database=dbname)
+                                database=dbname, charset='utf8')
     else:
         raise ValueError('Unsupported database type {}'.format(dbtype))
 
