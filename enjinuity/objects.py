@@ -29,6 +29,14 @@ def parse(tree, func, *args, **kwargs):
             result.append(e)
     return ''.join(result)
 
+fontpx_map = {
+    '8px': 'xx-small',
+    '10px': 'x-small',
+    '12px': 'small',
+    '18px': 'x-large',
+    '24px': 'xx-large'
+}
+
 def bbcode_formatter(element, children):
     if element.tag == 'br':
         return '\r'.rstrip()
@@ -58,13 +66,13 @@ def bbcode_formatter(element, children):
         if not style_list:
             return children
         if 'font-size' in style_list:
-            size = element.get('style').split(':')
+            size = style_list.split(':')[1]
             return "[size={size}]{text}[/size]".format(text=children,
-                                                       size=size[1])
+                                                       size=fontpx_map[size])
         elif 'color' in style_list:
-            hexcolor = element.get('style').split('#')
+            hexcolor = style_list.split('#')[1]
             return "[color=#{color}]{text}[/color]".format(text=children,
-                                                           color=hexcolor[1])
+                                                           color=hexcolor)
     if (element.tag =='param' and element.get('name') == 'movie' and
             "youtube" in element.get('value')):
         firstSplit = element.get('value').split('&')
