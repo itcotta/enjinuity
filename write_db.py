@@ -14,9 +14,15 @@ import json
 import pickle
 import sys
 
+def print_usage():
+    print('Usage: write_db FILE')
+    print('Writes a dump from enjinuity to a database.')
+    print('Requires a valid \'config.json\'.')
+    print('FILE is a pickled Python dictionary of table name to list of rows to insert.')
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print('usage: ')
+        print_usage()
         sys.exit()
 
     f = open('config.json', 'r')
@@ -37,7 +43,7 @@ if __name__ == '__main__':
     elif dbtype == 'mysql':
         import pymysql
         conn = pymysql.connect(host=hostname, user=username, password=password,
-                                database=dbname, charset='utf8')
+                               database=dbname, charset='utf8')
     else:
         raise ValueError('Unsupported database type {}'.format(dbtype))
 
@@ -51,5 +57,18 @@ if __name__ == '__main__':
         for row in rows:
             cur.execute(query, row)
     conn.commit()
+    if dbtype == 'pgsql':
+        cur.execute('SELECT sequence_name FROM information_schema.sequences;')
+        query_max = 'SELECT MAX(%s) FROM %s;'
+        query_as = 'ALTER SEQUENCE %s RESTART WITH %s;'
+        cur2 = conn.cursor()
+        for seq in cur:
+            seqlst = seq[0].split('_')
+            table = seqlst[0] if len(seqlst) == 3 else seqlst[0] + seqlst[1]
+            pkey = seqlst[-2]
+            max_pkey = cur2.execute(query_max, (pkey, table)).fetchone()[0]
+            cur2.execute(query_as, (seq[0], max_pkey + 1))
+        conn.commit()
+        cur2.close()
     cur.close()
     conn.close()
