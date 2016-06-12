@@ -35,7 +35,9 @@ if __name__ == '__main__':
         conn = psycopg2.connect(host=hostname, user=username, password=password,
                                 database=dbname)
     elif dbtype == 'mysql':
-        raise ValueError('Unsupported database type {}'.format(dbtype))
+        import pymysql
+        conn = pymysql.connect(host=hostname, user=username, password=password,
+                                database=dbname)
     else:
         raise ValueError('Unsupported database type {}'.format(dbtype))
 
