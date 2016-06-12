@@ -12,6 +12,7 @@
 import enjinuity.objects
 import pickle
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from urllib.parse import urlparse
 
 def dump_cookies(url, user, passwd, filename, driver='Firefox'):
@@ -49,7 +50,7 @@ class Scraper:
         elif driver == 'Chrome':
             self.browser = webdriver.Chrome()
         else:
-            raise AttributeError('Invalid Selenium WebDriver')
+            raise AttributeError('Invalid Selenium WebDriver: {}'.format(driver))
         self.browser.get('http://www.enjin.com/')
         for c in cookies:
             if c['domain'] == '.enjin.com':
@@ -64,21 +65,35 @@ class Scraper:
 
         self.db = {}
         self.children = []
+        try:
+            self.categories = self.browser.find_elements_by_xpath(
+              ('//div[contains(@class, "contentbox") and '
+                     'contains(@class, "category")]'))
+        except NoSuchElementException:
+            raise ValueError(('Could not find any categories, '
+                              'check the input URL?'))
 
     def __del__(self):
         if self.browser:
             self.browser.quit()
 
     def run(self):
-        categories = self.browser.find_elements_by_xpath(
-            ('//div[contains(@class, "contentbox") and '
-                   'contains(@class, "category")]'))
-        for c in categories:
+        for c in self.categories:
             category = enjinuity.objects.Category(c)
             self.children.append(category)
 
         for child in self.children:
             child.get_children(self.browser, self.users)
+
+    def run_single(self, category):
+        for c in self.categories:
+            c_name = c.find_element_by_xpath('div[1]/div[3]/span').text
+            if c_name == category:
+                cat = enjinuity.objects.Category(c)
+                self.children.append(cat)
+                cat.get_children(self.browser, self.users)
+                return
+        raise ValueError('Could not find category {}'.format(category))
 
     def dump_mybb(self, filename):
         for table in ['forums', 'threads', 'posts']:
