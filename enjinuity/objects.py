@@ -353,14 +353,12 @@ class Thread(FObject):
         self.poll = 0
           
         try:
-            #check if there's a post-poll-area
             poll_block = browser.find_element_by_xpath(
                 ('.//td[2]/div[@class="post-wrapper"]'+
                   '/div[@class="post-poll-area"]'))                                          
             poll_child = Poll(poll_block, self)
             self.poll = poll_child.get_pid()
             self.children.append(poll_child)
-           
         except NoSuchElementException:
             pass 
 
