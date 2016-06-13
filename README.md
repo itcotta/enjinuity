@@ -1,26 +1,20 @@
 # enjinuity
-Enjin forums do not provide an export feature to allow communities to migrate
-away their services. While this decision makes good business sense, we believe
-it is harmful for their users.
+*enjinuity* provides a way for Enjin communities to export their forum to a
+number of other self-hosted forum software in order to migrate away from Enjin.
 
-*enjinuity* allows you to move your Enjin forum to a number of popular forum
-software.
+## Supported forums
+* MyBB
 
-## Setup
+## Prerequisites
+* Python 3
+* lxml
+* Selenium
+* Psycopg2 or PyMySql
 
-### Prerequisites
-Python 3
-
-lxml
-
-Selenium
-
-Psycopg2 or PyMySql
-
-### Install
+## Install
 
 ## Usage
-For an example, see `bin/run_enjinuity`.
+For a full example script, please see [bin/run_enjinuity](bin/run_enjinuity).
 
 ## Reference
 short and succint API docs here
@@ -29,8 +23,7 @@ short and succint API docs here
 pls helb make phpbb and vb and ipb and other forums work?!
 
 ## Authors
-David H. Wei
-
+David H. Wei  
 Italo Cotta
 
 ## License
